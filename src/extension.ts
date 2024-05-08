@@ -1,26 +1,35 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+let unownViewer: vscode.StatusBarItem;
+
 export function activate(context: vscode.ExtensionContext) {
+	unownViewer = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 500);
+	unownViewer.name = "Unown";
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "unown" is now active!');
+	context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(updateStatusBarItem));
+	context.subscriptions.push(vscode.window.onDidChangeTextEditorSelection(updateStatusBarItem));
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('unown.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from unown!');
-	});
-
-	context.subscriptions.push(disposable);
+	updateStatusBarItem();
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+function updateStatusBarItem(): void {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		unownViewer.hide();
+		return;
+	}
+
+	const document = editor.document;
+	const selection = editor.selection;
+	const pos = selection.active;
+
+	// NOTE(jmg-duarte): it does not support UTF-8 Grapheme clusters
+	// https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundary_Rules
+	let ch = document.getText(new vscode.Range(pos, pos.translate(0, 1)));
+	if (ch === '') {
+		ch = document.getText(new vscode.Range(pos, pos.translate(1, 0).with(undefined, 0)));
+	}
+
+	unownViewer.text = `UTF-8: ${ch.charCodeAt(0)}`;
+	unownViewer.show();
+}
